@@ -16,7 +16,7 @@
   --gray-900: #212529;
 }
 
-/* Tema escuro: sobrescreve as variáveis quando [data-theme="dark"] estiver definido no <html> */
+/* Tema escuro */
 [data-theme="dark"] {
   --primary: #2a0c42;
   --primary-light: #49147a;
