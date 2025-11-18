@@ -13,32 +13,36 @@ export function CartProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // 🔹 Buscar produtos
+  // fetchProducts disponível para refetch manual
+  async function fetchProducts() {
+    const { data, error } = await supabase.from("product_2v").select();
+    if (error) console.error("Erro ao buscar produtos:", error);
+    setProducts(data || []);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    async function fetchProducts() {
-      const { data, error } = await supabase.from("product_1v").select();
-      if (error) console.error(error);
-      setProducts(data || []);
-      setLoading(false);
-    }
     fetchProducts();
   }, []);
 
   // 🔹 Carregar carrinho do usuário autenticado (raw)
   useEffect(() => {
-    async function fetchCart() {
-      if (!session?.user) {
-        setCartRaw([]);
-        return;
-      }
-      const { data, error } = await supabase
-        .from("CART")
-        .select("*")
-        .eq("user_id", session.user.id);
-      if (error) console.error(error);
-      setCartRaw(data || []);
-    }
     fetchCart();
   }, [session]);
+
+  // fetchCart disponível para refetch manual
+  async function fetchCart() {
+    if (!session?.user) {
+      setCartRaw([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("CART")
+      .select("*")
+      .eq("user_id", session.user.id);
+    if (error) console.error("Erro ao buscar carrinho:", error);
+    setCartRaw(data || []);
+  }
 
   // 🔹 Enriquecer cartRaw com dados dos products sempre que um dos dois mudar
   useEffect(() => {
@@ -121,6 +125,62 @@ async function addToCart(product) {
   }
 }
 
+  // Funções de administração de produtos (apenas lógica, permissões no Supabase necessárias)
+  async function addProduct({ title, description, price, thumbnail }) {
+    try {
+      const { data, error } = await supabase
+        .from("product_2v")
+        .insert([
+          { title, description, price: Number(price), thumbnail },
+        ])
+        .select();
+      if (error) {
+        console.error("Erro ao inserir produto:", error);
+        return { error };
+      }
+      // refetch
+      await fetchProducts();
+      return { data };
+    } catch (err) {
+      console.error("[addProduct] unexpected error:", err);
+      return { error: err };
+    }
+  }
+
+  async function updateProduct(id, updates) {
+    try {
+      const { data, error } = await supabase
+        .from("product_2v")
+        .update(updates)
+        .eq("id", id)
+        .select();
+      if (error) {
+        console.error("Erro ao atualizar produto:", error);
+        return { error };
+      }
+      await fetchProducts();
+      return { data };
+    } catch (err) {
+      console.error("[updateProduct] unexpected error:", err);
+      return { error: err };
+    }
+  }
+
+  async function deleteProduct(id) {
+    try {
+      const { error } = await supabase.from("product_2v").delete().eq("id", id);
+      if (error) {
+        console.error("Erro ao deletar produto:", error);
+        return { error };
+      }
+      await fetchProducts();
+      return {};
+    } catch (err) {
+      console.error("[deleteProduct] unexpected error:", err);
+      return { error: err };
+    }
+  }
+
 // Função: atualizar quantidade de um produto
 async function updateQtyCart(productId, quantity) {
   // Atualiza o estado local imediatamente
@@ -183,6 +243,12 @@ async function clearCart() {
         updateQtyCart,
         removeFromCart,
         clearCart,
+        // admin / refresh helpers
+        refreshProducts: fetchProducts,
+        refreshCart: fetchCart,
+        addProduct,
+        updateProduct,
+        deleteProduct,
       }}
     >
       {children}
