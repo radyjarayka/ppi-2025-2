@@ -1,7 +1,7 @@
 :root {
-  --primary: #f49097;
-  --primary-light: #fcd6da;
-  --primary-dark: #a04e56;
+  --primary: #622969;
+  --primary-light: #a744a7bd;
+  --primary-dark: #b74ef3;
   --primary-contrast-light: #fff;
   --primary-contrast-dark: #111;
   
@@ -18,8 +18,8 @@
 
 /* Tema escuro: sobrescreve as variáveis quando [data-theme="dark"] estiver definido no <html> */
 [data-theme="dark"] {
-  --primary: #7a2e31;
-  --primary-light: #5f2628;
+  --primary: #2a0c42;
+  --primary-light: #49147a;
   --primary-dark: #4a1f20;
   --primary-contrast-light: #111;
   --primary-contrast-dark: #fff;

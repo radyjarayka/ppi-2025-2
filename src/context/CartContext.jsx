@@ -7,7 +7,7 @@ export const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const { session } = useContext(SessionContext);
-  const [cartRaw, setCartRaw] = useState([]); // rows da tabela CART: { product_id, quantity, ... }
+  const [cartRaw, setCartRaw] = useState([]); // rows da tabela cart: { product_id, quantity, ... }
   const [cart, setCart] = useState([]); // itens enriquecidos com dados do produto
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ export function CartProvider({ children }) {
       return;
     }
     const { data, error } = await supabase
-      .from("CART")
+      .from("cart") // ALTERADO: CART para cart
       .select("*")
       .eq("user_id", session.user.id);
     if (error) console.error("Erro ao buscar carrinho:", error);
@@ -73,66 +73,66 @@ export function CartProvider({ children }) {
 
   // 🔹 Adicionar item ao carrinho
   // Função: adicionar produto ao carrinho
-async function addToCart(product) {
-  try {
-    console.debug("[addToCart] product:", product);
-    console.debug("[addToCart] session:", session?.user?.id ?? session);
+  async function addToCart(product) {
+    try {
+      console.debug("[addToCart] product:", product);
+      console.debug("[addToCart] session:", session?.user?.id ?? session);
 
-    const existing = cart.find((item) => item.id === product.id);
+      const existing = cart.find((item) => item.id === product.id);
 
-    if (existing) {
-      // Se o produto já existe, aumenta a quantidade
-      await updateQtyCart(product.id, existing.quantity + 1);
-      return;
-    }
-
-    // Atualiza o estado local primeiro
-    setCart((prev) => [...prev, { ...product, quantity: 1 }]);
-
-    // Depois salva no banco (se logado)
-    if (session?.user) {
-      // insere e pede as linhas retornadas (.select()) para ver o resultado
-      const res = await supabase
-        .from("CART")
-        .insert({
-          user_id: session.user.id,
-          product_id: product.id,
-          quantity: 1,
-        })
-        .select();
-
-      console.debug("[addToCart] supabase insert result:", res);
-
-      if (res.error) {
-        console.error("Erro ao adicionar produto no Supabase:", res.error);
-      } else {
-        // refetch do cartRaw para refletir o que está no banco
-        const { data: rows, error: fetchError } = await supabase
-          .from("CART")
-          .select("*")
-          .eq("user_id", session.user.id);
-        if (fetchError) {
-          console.error("Erro ao buscar carrinho após insert:", fetchError);
-        } else {
-          setCartRaw(rows || []);
-        }
+      if (existing) {
+        // Se o produto já existe, aumenta a quantidade
+        await updateQtyCart(product.id, existing.quantity + 1);
+        return;
       }
-    } else {
-      console.info("[addToCart] usuário não autenticado — apenas atualizei estado local");
+
+      // Atualiza o estado local primeiro
+      setCart((prev) => [...prev, { ...product, quantity: 1 }]);
+
+      // Depois salva no banco (se logado)
+      if (session?.user) {
+        // insere e pede as linhas retornadas (.select()) para ver o resultado
+        const res = await supabase
+          .from("cart") // ALTERADO: CART para cart
+          .insert({
+            user_id: session.user.id,
+            product_id: product.id,
+            quantity: 1,
+          })
+          .select();
+
+        console.debug("[addToCart] supabase insert result:", res);
+
+        if (res.error) {
+          console.error("Erro ao adicionar produto no Supabase:", res.error);
+        } else {
+          // refetch do cartRaw para refletir o que está no banco
+          const { data: rows, error: fetchError } = await supabase
+            .from("cart") // ALTERADO: CART para cart
+            .select("*")
+            .eq("user_id", session.user.id);
+          if (fetchError) {
+            console.error("Erro ao buscar carrinho após insert:", fetchError);
+          } else {
+            setCartRaw(rows || []);
+          }
+        }
+      } else {
+        console.info(
+          "[addToCart] usuário não autenticado — apenas atualizei estado local"
+        );
+      }
+    } catch (err) {
+      console.error("[addToCart] unexpected error:", err);
     }
-  } catch (err) {
-    console.error("[addToCart] unexpected error:", err);
   }
-}
 
   // Funções de administração de produtos (apenas lógica, permissões no Supabase necessárias)
   async function addProduct({ title, description, price, thumbnail }) {
     try {
       const { data, error } = await supabase
         .from("product_2v")
-        .insert([
-          { title, description, price: Number(price), thumbnail },
-        ])
+        .insert([{ title, description, price: Number(price), thumbnail }])
         .select();
       if (error) {
         console.error("Erro ao inserir produto:", error);
@@ -181,57 +181,57 @@ async function addToCart(product) {
     }
   }
 
-// Função: atualizar quantidade de um produto
-async function updateQtyCart(productId, quantity) {
-  // Atualiza o estado local imediatamente
-  setCart((prev) =>
-    prev.map((item) =>
-      item.id === productId ? { ...item, quantity } : item
-    )
-  );
+  // Função: atualizar quantidade de um produto
+  async function updateQtyCart(productId, quantity) {
+    // Atualiza o estado local imediatamente
+    setCart((prev) =>
+      prev.map((item) =>
+        item.id === productId ? { ...item, quantity } : item
+      )
+    );
 
-  // Atualiza no banco (se o usuário estiver logado)
-  if (session?.user) {
-    const { error } = await supabase
-      .from("CART")
-      .update({ quantity })
-      .eq("user_id", session.user.id)
-      .eq("product_id", productId);
-    if (error) console.error("Erro ao atualizar quantidade no Supabase:", error);
+    // Atualiza no banco (se o usuário estiver logado)
+    if (session?.user) {
+      const { error } = await supabase
+        .from("cart") // ALTERADO: CART para cart
+        .update({ quantity })
+        .eq("user_id", session.user.id)
+        .eq("product_id", productId);
+      if (error)
+        console.error("Erro ao atualizar quantidade no Supabase:", error);
+    }
   }
-}
 
-// Função: remover um produto do carrinho
-async function removeFromCart(productId) {
-  // Atualiza localmente primeiro
-  setCart((prev) => prev.filter((item) => item.id !== productId));
+  // Função: remover um produto do carrinho
+  async function removeFromCart(productId) {
+    // Atualiza localmente primeiro
+    setCart((prev) => prev.filter((item) => item.id !== productId));
 
-  // Depois remove do Supabase (se logado)
-  if (session?.user) {
-    const { error } = await supabase
-      .from("CART")
-      .delete()
-      .eq("user_id", session.user.id)
-      .eq("product_id", productId);
-    if (error) console.error("Erro ao remover produto no Supabase:", error);
+    // Depois remove do Supabase (se logado)
+    if (session?.user) {
+      const { error } = await supabase
+        .from("cart") // ALTERADO: CART para cart
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("product_id", productId);
+      if (error) console.error("Erro ao remover produto no Supabase:", error);
+    }
   }
-}
 
-// Função: limpar todo o carrinho
-async function clearCart() {
-  // Limpa localmente
-  setCart([]);
+  // Função: limpar todo o carrinho
+  async function clearCart() {
+    // Limpa localmente
+    setCart([]);
 
-  // E limpa no Supabase (se logado)
-  if (session?.user) {
-    const { error } = await supabase
-      .from("CART")
-      .delete()
-      .eq("user_id", session.user.id);
-    if (error) console.error("Erro ao limpar carrinho no Supabase:", error);
+    // E limpa no Supabase (se logado)
+    if (session?.user) {
+      const { error } = await supabase
+        .from("cart") // ALTERADO: CART para cart
+        .delete()
+        .eq("user_id", session.user.id);
+      if (error) console.error("Erro ao limpar carrinho no Supabase:", error);
+    }
   }
-}
-
 
   return (
     <CartContext.Provider
